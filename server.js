@@ -589,13 +589,15 @@ app.get('/api/telegram/gifts', async (req, res) => {
     }
 
     const gifts = (data.result?.gifts || []).map((gift) => ({
-      id: gift.id,
-      sticker: gift.sticker || null,
-      starCount: gift.star_count || 0,
-      upgradeStarCount: gift.upgrade_star_count || 0,
-      totalCount: gift.total_count || null,
-      remainingCount: gift.remaining_count || null
-    }))
+  id: gift.id,
+  name: gift.sticker?.emoji || `Telegram Gift #${gift.id}`,
+  emoji: gift.sticker?.emoji || '🎁',
+  fileId: gift.sticker?.file_id || null,
+  starCount: gift.star_count || 0,
+  upgradeStarCount: gift.upgrade_star_count || 0,
+  totalCount: gift.total_count || null,
+  remainingCount: gift.remaining_count || null
+}))
 
     return res.json({
       ok: true,

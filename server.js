@@ -20,6 +20,10 @@ const sql = process.env.DATABASE_URL
   ? neon(process.env.DATABASE_URL)
   : null
 
+/* =========================
+   DATABASE
+========================= */
+
 async function initDatabase() {
   if (!sql) return
 
@@ -51,15 +55,43 @@ async function initDatabase() {
     ON inventory(telegram_id)
   `
 
-   await sql`
+  await sql`
     CREATE TABLE IF NOT EXISTS roulette_spins (
       telegram_id BIGINT PRIMARY KEY REFERENCES users(telegram_id) ON DELETE CASCADE,
       last_spin_at TIMESTAMPTZ NOT NULL
     )
   `
 
+  await sql`
+    CREATE TABLE IF NOT EXISTS promo_codes (
+      id UUID PRIMARY KEY,
+      code TEXT UNIQUE NOT NULL,
+      reward_stars INTEGER NOT NULL,
+      max_activations INTEGER NOT NULL,
+      activations_count INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS promo_activations (
+      promo_id UUID NOT NULL REFERENCES promo_codes(id) ON DELETE CASCADE,
+      telegram_id BIGINT NOT NULL REFERENCES users(telegram_id) ON DELETE CASCADE,
+      activated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (promo_id, telegram_id)
+    )
+  `
+
   console.log('PostgreSQL database ready')
 }
+
+initDatabase().catch(error => {
+  console.error('Database initialization error:', error)
+})
+
+/* =========================
+   TELEGRAM INIT DATA
+========================= */
 
 function validateTelegramInitData(initData) {
   if (!initData || !process.env.BOT_TOKEN) {
@@ -116,6 +148,10 @@ function getInitData(req) {
     ''
   )
 }
+
+/* =========================
+   USERS
+========================= */
 
 async function getUser(telegramId) {
   if (!sql) {
@@ -193,8 +229,14 @@ async function createUser(telegramUser) {
   return getUser(id)
 }
 
+/* =========================
+   AUTH
+========================= */
+
 async function requireTelegramUser(req, res) {
-  const telegramUser = validateTelegramInitData(getInitData(req))
+  const telegramUser = validateTelegramInitData(
+    getInitData(req)
+  )
 
   if (!telegramUser) {
     res.status(401).json({
@@ -230,17 +272,21 @@ async function requireAdmin(req, res) {
 }
 
 /* =========================
-   ОСНОВНЫЕ API
+   ROOT
 ========================= */
 
 app.get('/', (req, res) => {
   res.json({
     ok: true,
     name: 'VeltoGifts API',
-    version: '2.0.0',
+    version: '2.1.0',
     database: 'postgresql'
   })
 })
+
+/* =========================
+   HEALTH
+========================= */
 
 app.get('/api/health', async (req, res) => {
   try {
@@ -269,7 +315,7 @@ app.get('/api/health', async (req, res) => {
 })
 
 /* =========================
-   ПОЛЬЗОВАТЕЛЬ
+   USER
 ========================= */
 
 app.post('/api/user', async (req, res) => {
@@ -306,7 +352,7 @@ app.post('/api/user', async (req, res) => {
 })
 
 /* =========================
-   ПРОВЕРКА АДМИНА
+   ADMIN CHECK
 ========================= */
 
 app.get('/api/admin/check', async (req, res) => {
@@ -334,7 +380,7 @@ app.get('/api/admin/check', async (req, res) => {
 })
 
 /* =========================
-   АДМИН — ПОЛЬЗОВАТЕЛИ
+   ADMIN USERS
 ========================= */
 
 app.get('/api/admin/users', async (req, res) => {
@@ -388,7 +434,7 @@ app.get('/api/admin/users', async (req, res) => {
 })
 
 /* =========================
-   АДМИН — БАЛАНС
+   ADMIN BALANCE
 ========================= */
 
 app.post('/api/admin/balance', async (req, res) => {
@@ -454,7 +500,7 @@ app.post('/api/admin/balance', async (req, res) => {
 })
 
 /* =========================
-   АДМИН — БЛОКИРОВКА
+   ADMIN BLOCK
 ========================= */
 
 app.post('/api/admin/block', async (req, res) => {
@@ -498,7 +544,7 @@ app.post('/api/admin/block', async (req, res) => {
 })
 
 /* =========================
-   КЕЙСЫ
+   CASES
 ========================= */
 
 const cases = {
@@ -533,7 +579,7 @@ app.get('/api/cases', (req, res) => {
 })
 
 /* =========================
-   ОТКРЫТИЕ КЕЙСА
+   OPEN CASE
 ========================= */
 
 app.post('/api/cases/open', async (req, res) => {
@@ -581,12 +627,20 @@ app.post('/api/cases/open', async (req, res) => {
     const reward = currentCase.reward
     const itemId = crypto.randomUUID()
 
-    await sql`
+    const updated = await sql`
       UPDATE users
       SET balance = balance - ${currentCase.price}
       WHERE telegram_id = ${id}
         AND balance >= ${currentCase.price}
+      RETURNING telegram_id
     `
+
+    if (!updated.length) {
+      return res.status(400).json({
+        ok: false,
+        error: 'Not enough balance'
+      })
+    }
 
     await sql`
       INSERT INTO inventory (
@@ -630,8 +684,9 @@ app.post('/api/cases/open', async (req, res) => {
     })
   }
 })
+
 /* =========================
-   БЕСПЛАТНАЯ РУЛЕТКА
+   FREE ROULETTE
 ========================= */
 
 const freeRouletteRewards = [
@@ -701,13 +756,16 @@ app.post('/api/roulette/free', async (req, res) => {
     `
 
     if (existingSpin.length) {
-      const lastSpin = new Date(existingSpin[0].last_spin_at)
+      const lastSpin = new Date(
+        existingSpin[0].last_spin_at
+      )
 
       const nextSpin = new Date(
         lastSpin.getTime() + 24 * 60 * 60 * 1000
       )
 
-      const remaining = nextSpin.getTime() - Date.now()
+      const remaining =
+        nextSpin.getTime() - Date.now()
 
       if (remaining > 0) {
         return res.status(429).json({
@@ -779,8 +837,283 @@ app.post('/api/roulette/free', async (req, res) => {
     })
   }
 })
+
 /* =========================
-   VERCEL
+   PROMO CODES
+========================= */
+
+/*
+  Создание через Telegram:
+
+  /addpromo VELTO100 50 100
+
+  VELTO100 = код
+  50       = максимальное количество активаций
+  100      = награда VeltoStars
+*/
+
+async function createPromoCode(code, maxActivations, rewardStars) {
+  const normalizedCode = code
+    .trim()
+    .toUpperCase()
+
+  const result = await sql`
+    INSERT INTO promo_codes (
+      id,
+      code,
+      reward_stars,
+      max_activations
+    )
+    VALUES (
+      ${crypto.randomUUID()},
+      ${normalizedCode},
+      ${rewardStars},
+      ${maxActivations}
+    )
+    RETURNING
+      id,
+      code,
+      reward_stars,
+      max_activations,
+      activations_count,
+      created_at
+  `
+
+  return result[0]
+}
+
+/* =========================
+   TELEGRAM BOT API
+========================= */
+
+async function telegramRequest(method, body) {
+  if (!process.env.BOT_TOKEN) {
+    throw new Error('BOT_TOKEN is not configured')
+  }
+
+  const response = await fetch(
+    `https://api.telegram.org/bot${process.env.BOT_TOKEN}/${method}`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    }
+  )
+
+  const data = await response.json()
+
+  if (!data.ok) {
+    throw new Error(
+      data.description || 'Telegram API error'
+    )
+  }
+
+  return data
+}
+
+async function sendTelegramMessage(chatId, text) {
+  return telegramRequest('sendMessage', {
+    chat_id: chatId,
+    text
+  })
+}
+
+/* =========================
+   TELEGRAM WEBHOOK
+========================= */
+
+app.post('/api/telegram/webhook', async (req, res) => {
+  try {
+    const update = req.body
+
+    if (!update || !update.message) {
+      return res.json({
+        ok: true
+      })
+    }
+
+    const message = update.message
+    const chatId = message.chat?.id
+    const fromId = message.from?.id
+    const text = String(message.text || '').trim()
+
+    if (!chatId || !fromId) {
+      return res.json({
+        ok: true
+      })
+    }
+
+    /* =========================
+       START
+    ========================= */
+
+    if (text === '/start') {
+      await sendTelegramMessage(
+        chatId,
+        '🎁 VeltoGifts\n\nОткрой Mini App через кнопку меню бота.'
+      )
+
+      return res.json({
+        ok: true
+      })
+    }
+
+    /* =========================
+       ADD PROMO
+    ========================= */
+
+    if (
+      text === '/addpromo' ||
+      text.startsWith('/addpromo ')
+    ) {
+      const adminId = String(
+        process.env.ADMIN_TELEGRAM_ID || ''
+      )
+
+      if (String(fromId) !== adminId) {
+        await sendTelegramMessage(
+          chatId,
+          '⛔ У тебя нет прав для создания промокодов.'
+        )
+
+        return res.json({
+          ok: true
+        })
+      }
+
+      const parts = text.split(/\s+/)
+
+      if (parts.length !== 4) {
+        await sendTelegramMessage(
+          chatId,
+          '❌ Неверный формат.\n\nИспользуй:\n/addpromo VELTO100 50 100\n\nГде:\nVELTO100 — код\n50 — количество активаций\n100 — награда в VeltoStars'
+        )
+
+        return res.json({
+          ok: true
+        })
+      }
+
+      const code = parts[1]
+      const maxActivations = Number(parts[2])
+      const rewardStars = Number(parts[3])
+
+      if (
+        !/^[A-Za-z0-9_-]{3,32}$/.test(code)
+      ) {
+        await sendTelegramMessage(
+          chatId,
+          '❌ Код должен содержать от 3 до 32 символов: латинские буквы, цифры, _ или -.'
+        )
+
+        return res.json({
+          ok: true
+        })
+      }
+
+      if (
+        !Number.isInteger(maxActivations) ||
+        maxActivations <= 0
+      ) {
+        await sendTelegramMessage(
+          chatId,
+          '❌ Количество активаций должно быть целым числом больше 0.'
+        )
+
+        return res.json({
+          ok: true
+        })
+      }
+
+      if (
+        !Number.isInteger(rewardStars) ||
+        rewardStars <= 0
+      ) {
+        await sendTelegramMessage(
+          chatId,
+          '❌ Награда должна быть целым числом больше 0.'
+        )
+
+        return res.json({
+          ok: true
+        })
+      }
+
+      try {
+        const promo = await createPromoCode(
+          code,
+          maxActivations,
+          rewardStars
+        )
+
+        await sendTelegramMessage(
+          chatId,
+          `✅ Промокод создан!\n\n🎟 Код: ${promo.code}\n⭐ Награда: ${promo.reward_stars} VeltoStars\n👥 Активаций: 0/${promo.max_activations}`
+        )
+      } catch (error) {
+        console.error(
+          'Create promo error:',
+          error
+        )
+
+        if (
+          String(error.message || '').includes(
+            'duplicate'
+          )
+        ) {
+          await sendTelegramMessage(
+            chatId,
+            '❌ Такой промокод уже существует.'
+          )
+        } else {
+          await sendTelegramMessage(
+            chatId,
+            '❌ Не удалось создать промокод.'
+          )
+        }
+      }
+
+      return res.json({
+        ok: true
+      })
+    }
+
+    /* =========================
+       UNKNOWN COMMAND
+    ========================= */
+
+    if (text.startsWith('/')) {
+      await sendTelegramMessage(
+        chatId,
+        'Неизвестная команда.\n\nДоступно:\n/start\n/addpromo VELTO100 50 100'
+      )
+    }
+
+    res.json({
+      ok: true
+    })
+  } catch (error) {
+    console.error(
+      'Telegram webhook error:',
+      error
+    )
+
+    /*
+      Telegram должен получить HTTP 200,
+      чтобы не отправлять один и тот же update
+      бесконечно.
+    */
+
+    res.json({
+      ok: true
+    })
+  }
+})
+
+/* =========================
+   DEBUG TABLES
 ========================= */
 
 app.get('/api/debug/tables', async (req, res) => {
@@ -797,7 +1130,10 @@ app.get('/api/debug/tables', async (req, res) => {
       tables: tables.map(row => row.table_name)
     })
   } catch (error) {
-    console.error('Debug tables error:', error)
+    console.error(
+      'Debug tables error:',
+      error
+    )
 
     res.status(500).json({
       ok: false,
@@ -806,27 +1142,53 @@ app.get('/api/debug/tables', async (req, res) => {
   }
 })
 
-app.get('/api/debug/create-roulette-table', async (req, res) => {
-  try {
-    await sql`
-      CREATE TABLE IF NOT EXISTS roulette_spins (
-        telegram_id BIGINT PRIMARY KEY REFERENCES users(telegram_id) ON DELETE CASCADE,
-        last_spin_at TIMESTAMPTZ NOT NULL
+/* =========================
+   DEBUG CREATE ROULETTE
+========================= */
+
+app.get(
+  '/api/debug/create-roulette-table',
+  async (req, res) => {
+    try {
+      await sql`
+        CREATE TABLE IF NOT EXISTS roulette_spins (
+          telegram_id BIGINT PRIMARY KEY REFERENCES users(telegram_id) ON DELETE CASCADE,
+          last_spin_at TIMESTAMPTZ NOT NULL
+        )
+      `
+
+      res.json({
+        ok: true,
+        message: 'roulette_spins created'
+      })
+    } catch (error) {
+      console.error(
+        'Create roulette table error:',
+        error
       )
-    `
 
-    res.json({
-      ok: true,
-      message: 'roulette_spins created'
-    })
-  } catch (error) {
-    console.error('Create roulette table error:', error)
-
-    res.status(500).json({
-      ok: false,
-      error: error.message
-    })
+      res.status(500).json({
+        ok: false,
+        error: error.message
+      })
+    }
   }
-})
+)
+
+/* =========================
+   VERCEL
+========================= */
 
 export default app
+
+/* =========================
+   LOCAL SERVER
+========================= */
+
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, () => {
+    console.log(
+      `VeltoGifts API running on port ${PORT}`
+    )
+  })
+}

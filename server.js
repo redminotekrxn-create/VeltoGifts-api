@@ -455,16 +455,6 @@ app.post('/api/admin/balance', async (req, res) => {
       })
     }
 
-    const updatedUser = await sql`
-  UPDATE users
-  SET balance = balance + ${promo.reward_stars}
-  WHERE telegram_id = ${telegramId}
-  RETURNING balance
-`
-
-if (updatedUser.length === 0) {
-  throw new Error('User not found')
-}
 
     if (!result.length) {
       const exists = await sql`
@@ -999,17 +989,16 @@ const telegramId = telegramUser.id
       )
     `
 
-    await sql`
-      UPDATE promo_codes
-      SET activations_count = activations_count + 1
-      WHERE id = ${promo.id}
-    `
+    const updatedUser = await sql`
+  UPDATE users
+  SET balance = balance + ${promo.reward_stars}
+  WHERE telegram_id = ${telegramId}
+  RETURNING balance
+`
 
-    await sql`
-      UPDATE users
-      SET balance = balance + ${promo.reward_stars}
-      WHERE telegram_id = ${telegramId}
-    `
+if (updatedUser.length === 0) {
+  throw new Error('User not found')
+}
 
     return res.json({
   ok: true,

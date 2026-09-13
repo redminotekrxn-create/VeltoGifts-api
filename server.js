@@ -564,6 +564,53 @@ const cases = {
   }
 }
 
+app.get('/api/telegram/gifts', async (req, res) => {
+  try {
+    const token = process.env.BOT_TOKEN
+
+    if (!token) {
+      return res.status(500).json({
+        ok: false,
+        error: 'BOT_TOKEN is not configured'
+      })
+    }
+
+    const response = await fetch(
+      `https://api.telegram.org/bot${token}/getAvailableGifts`
+    )
+
+    const data = await response.json()
+
+    if (!data.ok) {
+      return res.status(500).json({
+        ok: false,
+        error: data.description || 'Telegram API error'
+      })
+    }
+
+    const gifts = (data.result?.gifts || []).map((gift) => ({
+      id: gift.id,
+      sticker: gift.sticker || null,
+      starCount: gift.star_count || 0,
+      upgradeStarCount: gift.upgrade_star_count || 0,
+      totalCount: gift.total_count || null,
+      remainingCount: gift.remaining_count || null
+    }))
+
+    return res.json({
+      ok: true,
+      gifts
+    })
+  } catch (error) {
+    console.error('Telegram gifts error:', error)
+
+    return res.status(500).json({
+      ok: false,
+      error: 'Failed to load Telegram gifts'
+    })
+  }
+})
+
 app.get('/api/cases', (req, res) => {
   res.json({
     ok: true,

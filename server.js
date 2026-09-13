@@ -796,43 +796,50 @@ app.post('/api/cases/open', async (req, res) => {
    FREE ROULETTE
 ========================= */
 
-const freeRouletteRewards = [
-  {
-    id: 'common',
-    name: 'Common Gift',
-    value: 5
-  },
-  {
-    id: 'common',
-    name: 'Common Gift',
-    value: 10
-  },
-  {
-    id: 'rare',
-    name: 'Rare Gift',
-    value: 20
-  },
-  {
-    id: 'epic',
-    name: 'Epic Gift',
-    value: 50
-  },
-  {
-    id: 'legendary',
-    name: 'Legendary Gift',
-    value: 100
+function giftToReward(gift) {
+  return {
+    id: String(gift.id),
+    name: gift.sticker?.emoji || `Telegram Gift #${gift.id}`,
+    value: Number(gift.star_count || 0),
+    image: `/api/telegram/gift-image/${encodeURIComponent(gift.id)}`,
+    telegramGiftId: String(gift.id),
+    starCount: Number(gift.star_count || 0),
+    upgradeStarCount: Number(gift.upgrade_star_count || 0)
   }
-]
-
-function getRandomRouletteReward() {
-  const randomIndex = Math.floor(
-    Math.random() * freeRouletteRewards.length
-  )
-
-  return freeRouletteRewards[randomIndex]
 }
 
-app.post('/api/roulette/free', async (req, res) => {
+async function getRandomRouletteReward() {
+  const telegramGifts = await getTelegramGifts()
+
+  if (!telegramGifts.length) {
+    throw new Error(
+      'Telegram Gifts are currently unavailable'
+    )
+  }
+
+  const available = telegramGifts.filter(
+    gift => Number(gift.star_count || 0) > 0
+  )
+
+  if (!available.length) {
+    throw new Error(
+      'No Telegram Gifts available'
+    )
+  }
+
+  const selectedGift =
+    available[
+      Math.floor(
+        Math.random() * available.length
+      )
+    ]
+
+  return giftToReward(selectedGift)
+}
+
+
+
+    app.post('/api/roulette/free', async (req, res) => {
   try {
     const telegramUser = await requireTelegramUser(req, res)
 
@@ -884,7 +891,7 @@ app.post('/api/roulette/free', async (req, res) => {
       }
     }
 
-    const reward = getRandomRouletteReward()
+    const reward = await getRandomRouletteReward()
     const itemId = crypto.randomUUID()
 
     await sql`

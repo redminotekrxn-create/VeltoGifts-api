@@ -56,7 +56,9 @@ async function initDatabase() {
       telegram_id BIGINT PRIMARY KEY REFERENCES users(telegram_id) ON DELETE CASCADE,
       last_spin_at TIMESTAMPTZ NOT NULL
     )
-  ` console.log('PostgreSQL database ready')
+  `
+
+  console.log('PostgreSQL database ready')
 }
 
 function validateTelegramInitData(initData) {
@@ -778,16 +780,7 @@ app.post('/api/roulette/free', async (req, res) => {
   }
 })
 /* =========================
-   ЗАПУСК
+   VERCEL
 ========================= */
 
-initDatabase()
-  .then(() => {
-    app.listen(PORT, () => {
-      console.log(`VeltoGifts API running on port ${PORT}`)
-    })
-  })
-  .catch(error => {
-    console.error('Database initialization failed:', error)
-    process.exit(1)
-  })
+export default app

@@ -1181,7 +1181,41 @@ app.get(
 
 export default app
 
-/* =========================
+app.get('/api/debug/create-promo-tables', async (req, res) => {
+  try {
+    await sql`
+      CREATE TABLE IF NOT EXISTS promo_codes (
+        id UUID PRIMARY KEY,
+        code TEXT UNIQUE NOT NULL,
+        reward_stars INTEGER NOT NULL,
+        max_activations INTEGER NOT NULL,
+        activations_count INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS promo_activations (
+        promo_id UUID NOT NULL REFERENCES promo_codes(id) ON DELETE CASCADE,
+        telegram_id BIGINT NOT NULL REFERENCES users(telegram_id) ON DELETE CASCADE,
+        activated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        PRIMARY KEY (promo_id, telegram_id)
+      )
+    `
+
+    res.json({
+      ok: true,
+      message: 'Promo tables created'
+    })
+  } catch (error) {
+    console.error(error)
+
+    res.status(500).json({
+      ok: false,
+      error: error.message
+    })
+  }
+})/* =========================
    LOCAL SERVER
 ========================= */
 

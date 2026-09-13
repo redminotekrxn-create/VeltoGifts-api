@@ -924,6 +924,99 @@ async function sendTelegramMessage(chatId, text) {
    TELEGRAM WEBHOOK
 ========================= */
 
+app.post('/api/promo/activate', async (req, res) => {
+  try {
+    const telegramId = await requireTelegramUser(req)
+    const code = String(req.body?.code || '').trim().toUpperCase()
+
+    if (!code) {
+      return res.status(400).json({
+        ok: false,
+        error: 'Введите промокод'
+      })
+    }
+
+    const promoResult = await sql`
+      SELECT
+        id,
+        code,
+        reward_stars,
+        max_activations,
+        activations_count
+      FROM promo_codes
+      WHERE UPPER(code) = ${code}
+      LIMIT 1
+    `
+
+    if (promoResult.length === 0) {
+      return res.status(404).json({
+        ok: false,
+        error: 'Промокод не найден'
+      })
+    }
+
+    const promo = promoResult[0]
+
+    if (promo.activations_count >= promo.max_activations) {
+      return res.status(400).json({
+        ok: false,
+        error: 'Лимит активаций промокода исчерпан'
+      })
+    }
+
+    const existing = await sql`
+      SELECT 1
+      FROM promo_activations
+      WHERE promo_id = ${promo.id}
+        AND telegram_id = ${telegramId}
+      LIMIT 1
+    `
+
+    if (existing.length > 0) {
+      return res.status(400).json({
+        ok: false,
+        error: 'Вы уже активировали этот промокод'
+      })
+    }
+
+    await sql`
+      INSERT INTO promo_activations (
+        promo_id,
+        telegram_id
+      )
+      VALUES (
+        ${promo.id},
+        ${telegramId}
+      )
+    `
+
+    await sql`
+      UPDATE promo_codes
+      SET activations_count = activations_count + 1
+      WHERE id = ${promo.id}
+    `
+
+    await sql`
+      UPDATE users
+      SET balance = balance + ${promo.reward_stars}
+      WHERE telegram_id = ${telegramId}
+    `
+
+    return res.json({
+      ok: true,
+      message: 'Промокод успешно активирован',
+      rewardStars: promo.reward_stars
+    })
+  } catch (error) {
+    console.error('Promo activation error:', error)
+
+    return res.status(500).json({
+      ok: false,
+      error: 'Не удалось активировать промокод'
+    })
+  }
+})
+
 app.post('/api/telegram/webhook', async (req, res) => {
   try {
     const update = req.body

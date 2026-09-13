@@ -556,6 +556,28 @@ const cases = {
   }
 }
 
+async function getTelegramGifts() {
+  const token = process.env.BOT_TOKEN
+
+  if (!token) {
+    throw new Error('BOT_TOKEN is not configured')
+  }
+
+  const response = await fetch(
+    `https://api.telegram.org/bot${token}/getAvailableGifts`
+  )
+
+  const data = await response.json()
+
+  if (!data.ok) {
+    throw new Error(
+      data.description || 'Telegram API error'
+    )
+  }
+
+  return data.result?.gifts || []
+}
+
 app.get('/api/telegram/gifts', async (req, res) => {
   try {
     const token = process.env.BOT_TOKEN

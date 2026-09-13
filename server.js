@@ -543,24 +543,16 @@ app.post('/api/admin/block', async (req, res) => {
 const cases = {
   starter: {
     id: 'starter',
-    name: 'Starter Case',
+    name: 'Starter Gift',
     price: 10,
-    reward: {
-      id: 'common',
-      name: 'Common Gift',
-      value: 5
-    }
+    giftId: '5170145012310081615'
   },
 
   premium: {
     id: 'premium',
-    name: 'Premium Case',
+    name: 'Premium Gift',
     price: 50,
-    reward: {
-      id: 'rare',
-      name: 'Rare Gift',
-      value: 40
-    }
+    giftId: '5170144170496491616'
   }
 }
 
@@ -678,7 +670,7 @@ app.get('/api/telegram/gift-image/:giftId', async (req, res) => {
     return res.status(500).send('Failed to load gift image')
   }
 })
-app.get('api/cases', (req, res) => {
+app.get('/api/cases', (req, res) => {
   res.json({
     ok: true,
     cases
@@ -731,7 +723,20 @@ app.post('/api/cases/open', async (req, res) => {
       })
     }
 
-    const reward = currentCase.reward
+    const telegramGifts = await getTelegramGifts()
+
+const selectedGift = telegramGifts.find(
+  gift => String(gift.id) === String(currentCase.giftId)
+)
+
+if (!selectedGift) {
+  return res.status(404).json({
+    ok: false,
+    error: 'Telegram Gift is currently unavailable'
+  })
+}
+
+const reward = giftToReward(selectedGift)
     const itemId = crypto.randomUUID()
 
     const updated = await sql`

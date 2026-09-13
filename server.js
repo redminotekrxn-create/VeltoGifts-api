@@ -929,7 +929,13 @@ async function sendTelegramMessage(chatId, text) {
 
 app.post('/api/promo/activate', async (req, res) => {
   try {
-    const telegramId = await requireTelegramUser(req)
+    const telegramUser = await requireTelegramUser(req, res)
+
+if (!telegramUser) {
+  return
+}
+
+const telegramId = telegramUser.id
     const code = String(req.body?.code || '').trim().toUpperCase()
 
     if (!code) {

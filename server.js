@@ -455,13 +455,16 @@ app.post('/api/admin/balance', async (req, res) => {
       })
     }
 
-    const result = await sql`
-      UPDATE users
-      SET balance = balance + ${value}
-      WHERE telegram_id = ${id}
-        AND balance + ${value} >= 0
-      RETURNING telegram_id
-    `
+    const updatedUser = await sql`
+  UPDATE users
+  SET balance = balance + ${promo.reward_stars}
+  WHERE telegram_id = ${telegramId}
+  RETURNING balance
+`
+
+if (updatedUser.length === 0) {
+  throw new Error('User not found')
+}
 
     if (!result.length) {
       const exists = await sql`
@@ -1003,10 +1006,11 @@ app.post('/api/promo/activate', async (req, res) => {
     `
 
     return res.json({
-      ok: true,
-      message: 'Промокод успешно активирован',
-      rewardStars: promo.reward_stars
-    })
+  ok: true,
+  message: 'Промокод успешно активирован',
+  rewardStars: promo.reward_stars,
+  balance: updatedUser[0].balance
+})
   } catch (error) {
     console.error('Promo activation error:', error)
 

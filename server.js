@@ -51,7 +51,12 @@ async function initDatabase() {
     ON inventory(telegram_id)
   `
 
-  console.log('PostgreSQL database ready')
+   await sql`
+    CREATE TABLE IF NOT EXISTS roulette_spins (
+      telegram_id BIGINT PRIMARY KEY REFERENCES users(telegram_id) ON DELETE CASCADE,
+      last_spin_at TIMESTAMPTZ NOT NULL
+    )
+  ` console.log('PostgreSQL database ready')
 }
 
 function validateTelegramInitData(initData) {
@@ -623,7 +628,155 @@ app.post('/api/cases/open', async (req, res) => {
     })
   }
 })
+/* =========================
+   БЕСПЛАТНАЯ РУЛЕТКА
+========================= */
 
+const freeRouletteRewards = [
+  {
+    id: 'common',
+    name: 'Common Gift',
+    value: 5
+  },
+  {
+    id: 'common',
+    name: 'Common Gift',
+    value: 10
+  },
+  {
+    id: 'rare',
+    name: 'Rare Gift',
+    value: 20
+  },
+  {
+    id: 'epic',
+    name: 'Epic Gift',
+    value: 50
+  },
+  {
+    id: 'legendary',
+    name: 'Legendary Gift',
+    value: 100
+  }
+]
+
+function getRandomRouletteReward() {
+  const randomIndex = Math.floor(
+    Math.random() * freeRouletteRewards.length
+  )
+
+  return freeRouletteRewards[randomIndex]
+}
+
+app.post('/api/roulette/free', async (req, res) => {
+  try {
+    const telegramUser = await requireTelegramUser(req, res)
+
+    if (!telegramUser) return
+
+    const id = String(telegramUser.id)
+    const user = await getUser(id)
+
+    if (!user) {
+      return res.status(404).json({
+        ok: false,
+        error: 'User not found'
+      })
+    }
+
+    if (user.blocked) {
+      return res.status(403).json({
+        ok: false,
+        error: 'User is blocked'
+      })
+    }
+
+    const existingSpin = await sql`
+      SELECT last_spin_at
+      FROM roulette_spins
+      WHERE telegram_id = ${id}
+      LIMIT 1
+    `
+
+    if (existingSpin.length) {
+      const lastSpin = new Date(existingSpin[0].last_spin_at)
+
+      const nextSpin = new Date(
+        lastSpin.getTime() + 24 * 60 * 60 * 1000
+      )
+
+      const remaining = nextSpin.getTime() - Date.now()
+
+      if (remaining > 0) {
+        return res.status(429).json({
+          ok: false,
+          error: 'Roulette is on cooldown',
+          remainingMs: remaining,
+          nextSpinAt: nextSpin.toISOString()
+        })
+      }
+    }
+
+    const reward = getRandomRouletteReward()
+    const itemId = crypto.randomUUID()
+
+    await sql`
+      INSERT INTO roulette_spins (
+        telegram_id,
+        last_spin_at
+      )
+      VALUES (
+        ${id},
+        NOW()
+      )
+      ON CONFLICT (telegram_id)
+      DO UPDATE SET
+        last_spin_at = NOW()
+    `
+
+    await sql`
+      INSERT INTO inventory (
+        id,
+        telegram_id,
+        reward_id,
+        reward_name,
+        value,
+        case_name
+      )
+      VALUES (
+        ${itemId},
+        ${id},
+        ${reward.id},
+        ${reward.name},
+        ${reward.value},
+        'Free Roulette'
+      )
+    `
+
+    const updatedUser = await getUser(id)
+
+    const item = updatedUser.inventory.find(
+      item => item.id === itemId
+    )
+
+    res.json({
+      ok: true,
+      reward: item,
+      balance: updatedUser.balance,
+      inventory: updatedUser.inventory,
+      nextSpinAt: new Date(
+        Date.now() + 24 * 60 * 60 * 1000
+      ).toISOString()
+    })
+  } catch (error) {
+    console.error(error)
+
+    res.status(500).json({
+      ok: false,
+      error: 'Database error'
+    })
+  }
+})
 /* =========================
    ЗАПУСК
 ========================= */

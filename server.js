@@ -783,4 +783,27 @@ app.post('/api/roulette/free', async (req, res) => {
    VERCEL
 ========================= */
 
+app.get('/api/debug/tables', async (req, res) => {
+  try {
+    const tables = await sql`
+      SELECT table_name
+      FROM information_schema.tables
+      WHERE table_schema = 'public'
+      ORDER BY table_name
+    `
+
+    res.json({
+      ok: true,
+      tables: tables.map(row => row.table_name)
+    })
+  } catch (error) {
+    console.error('Debug tables error:', error)
+
+    res.status(500).json({
+      ok: false,
+      error: error.message
+    })
+  }
+})
+
 export default app

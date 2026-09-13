@@ -806,4 +806,27 @@ app.get('/api/debug/tables', async (req, res) => {
   }
 })
 
+app.get('/api/debug/create-roulette-table', async (req, res) => {
+  try {
+    await sql`
+      CREATE TABLE IF NOT EXISTS roulette_spins (
+        telegram_id BIGINT PRIMARY KEY REFERENCES users(telegram_id) ON DELETE CASCADE,
+        last_spin_at TIMESTAMPTZ NOT NULL
+      )
+    `
+
+    res.json({
+      ok: true,
+      message: 'roulette_spins created'
+    })
+  } catch (error) {
+    console.error('Create roulette table error:', error)
+
+    res.status(500).json({
+      ok: false,
+      error: error.message
+    })
+  }
+})
+
 export default app

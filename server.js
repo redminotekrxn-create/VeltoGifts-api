@@ -589,15 +589,16 @@ app.get('/api/telegram/gifts', async (req, res) => {
     }
 
     const gifts = (data.result?.gifts || []).map((gift) => ({
-  id: gift.id,
-  name: gift.sticker?.emoji || `Telegram Gift #${gift.id}`,
-  emoji: gift.sticker?.emoji || '🎁',
-  fileId: gift.sticker?.file_id || null,
-  starCount: gift.star_count || 0,
-  upgradeStarCount: gift.upgrade_star_count || 0,
-  totalCount: gift.total_count || null,
-  remainingCount: gift.remaining_count || null
-}))
+      id: gift.id,
+      name: gift.sticker?.emoji || `Telegram Gift #${gift.id}`,
+      emoji: gift.sticker?.emoji || '🎁',
+      image: `/api/telegram/gift-image/${encodeURIComponent(gift.id)}`,
+      starCount: gift.star_count || 0,
+      upgradeStarCount: gift.upgrade_star_count || 0,
+      totalCount: gift.total_count || null,
+      remainingCount: gift.remaining_count || null,
+      background: gift.background || null
+    }))
 
     return res.json({
       ok: true,
@@ -613,7 +614,71 @@ app.get('/api/telegram/gifts', async (req, res) => {
   }
 })
 
-app.get('/api/cases', (req, res) => {
+app.get('/api/telegram/gift-image/:giftId', async (req, res) => {
+  try {
+    const token = process.env.BOT_TOKEN
+
+    if (!token) {
+      return res.status(500).send('BOT_TOKEN is not configured')
+    }
+
+    const giftsResponse = await fetch(
+      `https://api.telegram.org/bot${token}/getAvailableGifts`
+    )
+
+    const giftsData = await giftsResponse.json()
+
+    if (!giftsData.ok) {
+      return res.status(500).send('Telegram API error')
+    }
+
+    const gift = (giftsData.result?.gifts || []).find(
+      (item) => String(item.id) === String(req.params.giftId)
+    )
+
+    if (!gift) {
+      return res.status(404).send('Gift not found')
+    }
+
+    const fileId = gift.sticker?.thumbnail?.file_id
+
+    if (!fileId) {
+      return res.status(404).send('Gift image not found')
+    }
+
+    const fileResponse = await fetch(
+      `https://api.telegram.org/bot${token}/getFile?file_id=${encodeURIComponent(fileId)}`
+    )
+
+    const fileData = await fileResponse.json()
+
+    if (!fileData.ok || !fileData.result?.file_path) {
+      return res.status(500).send('Failed to get gift image')
+    }
+
+    const imageResponse = await fetch(
+      `https://api.telegram.org/file/bot${token}/${fileData.result.file_path}`
+    )
+
+    if (!imageResponse.ok) {
+      return res.status(500).send('Failed to download gift image')
+    }
+
+    const contentType =
+      imageResponse.headers.get('content-type') || 'image/jpeg'
+
+    const imageBuffer = Buffer.from(await imageResponse.arrayBuffer())
+
+    res.setHeader('Content-Type', contentType)
+    res.setHeader('Cache-Control', 'public, max-age=3600')
+
+    return res.send(imageBuffer)
+  } catch (error) {
+    console.error('Telegram gift image error:', error)
+    return res.status(500).send('Failed to load gift image')
+  }
+})
+app.get('api/cases', (req, res) => {
   res.json({
     ok: true,
     cases

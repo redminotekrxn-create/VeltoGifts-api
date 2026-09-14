@@ -746,8 +746,8 @@ app.post('/api/cases/open', async (req, res) => {
 
     if (!telegramUser) return
 
-    const { caseId } = req.body
-    const currentCase = cases[caseId]
+    const caseId = String(req.body?.caseId || '').trim().toLowerCase()
+const currentCase = cases[caseId]
 
     if (!currentCase) {
       return res.status(404).json({

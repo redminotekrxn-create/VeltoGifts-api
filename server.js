@@ -541,18 +541,55 @@ app.post('/api/admin/block', async (req, res) => {
 ========================= */
 
 const cases = {
-  starter: {
-    id: 'starter',
-    name: 'Starter Gift',
-    price: 10,
-    giftId: '5170145012310081615'
+  poor: {
+    id: 'poor',
+    name: '🥔 Бомж',
+    price: 50,
+    gifts: [
+      { giftId: '5170145012310081615', chance: 30 },
+      { giftId: '5170233102089322756', chance: 25 },
+      { giftId: '5170250947678437525', chance: 20 },
+      { giftId: '5168103777563050263', chance: 15 },
+      { giftId: '6028601630662853006', chance: 10 }
+    ]
   },
 
-  premium: {
-    id: 'premium',
-    name: 'Premium Gift',
-    price: 50,
-    giftId: '5170144170496491616'
+  newbie: {
+    id: 'newbie',
+    name: '🆕 Новенький',
+    price: 150,
+    gifts: [
+      { giftId: '5170250947678437525', chance: 30 },
+      { giftId: '5168103777563050263', chance: 25 },
+      { giftId: '5170144170496491616', chance: 20 },
+      { giftId: '5170314324215857265', chance: 15 },
+      { giftId: '5170564780938756245', chance: 10 }
+    ]
+  },
+
+  rich: {
+    id: 'rich',
+    name: '💰 Богач',
+    price: 300,
+    gifts: [
+      { giftId: '5170144170496491616', chance: 25 },
+      { giftId: '5170314324215857265', chance: 25 },
+      { giftId: '5170564780938756245', chance: 20 },
+      { giftId: '5168043875654172773', chance: 15 },
+      { giftId: '5170690322832818290', chance: 15 }
+    ]
+  },
+
+  billionaire: {
+    id: 'billionaire',
+    name: '👑 Миллиардер',
+    price: 699,
+    gifts: [
+      { giftId: '5168043875654172773', chance: 30 },
+      { giftId: '5170690322832818290', chance: 25 },
+      { giftId: '5170521118301225164', chance: 25 },
+      { giftId: '5170564780938756245', chance: 20 }
+    ]
   }
 }
 
@@ -747,14 +784,37 @@ app.post('/api/cases/open', async (req, res) => {
 
     const telegramGifts = await getTelegramGifts()
 
-const selectedGift = telegramGifts.find(
-  gift => String(gift.id) === String(currentCase.giftId)
+const weightedGifts = currentCase.gifts
+  .map(item => {
+    const gift = telegramGifts.find(
+      g => String(g.id) === String(item.giftId)
+    )
+
+    return gift ? { gift, chance: item.chance } : null
+  })
+  .filter(Boolean)
+
+const totalChance = weightedGifts.reduce(
+  (sum, item) => sum + item.chance,
+  0
 )
+
+let random = Math.random() * totalChance
+let selectedGift = null
+
+for (const item of weightedGifts) {
+  random -= item.chance
+
+  if (random <= 0) {
+    selectedGift = item.gift
+    break
+  }
+}
 
 if (!selectedGift) {
   return res.status(404).json({
     ok: false,
-    error: 'Telegram Gift is currently unavailable'
+    error: 'Telegram Gifts are currently unavailable'
   })
 }
 

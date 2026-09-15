@@ -3,6 +3,7 @@ import cors from 'cors'
 import dotenv from 'dotenv'
 import crypto from 'crypto'
 import { neon } from '@neondatabase/serverless'
+import { virtualGifts } from './virtualGifts.js'
 
 dotenv.config()
 
@@ -11,6 +12,12 @@ const PORT = process.env.PORT || 3000
 
 app.use(cors())
 app.use(express.json())
+app.get('/api/virtual-gifts', (req, res) => {
+  res.json({
+    ok: true,
+    gifts: virtualGifts
+  })
+})
 
 if (!process.env.DATABASE_URL) {
   console.error('DATABASE_URL is not configured')

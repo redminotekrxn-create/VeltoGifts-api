@@ -1,3 +1,4 @@
+import { requestWithdraw } from './withdraw.js';
 import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
@@ -891,7 +892,9 @@ const currentCase = cases[caseId]
         reward_id,
         reward_name,
         value,
-        case_name
+        case_name,
+        gift_type,
+        telegram_gift_id
       )
       VALUES (
         ${itemId},
@@ -899,7 +902,9 @@ const currentCase = cases[caseId]
         ${reward.id},
         ${reward.name},
         ${reward.value},
-        ${currentCase.name}
+        ${currentCase.name},
+        ${reward.isNft ? 'nft' : 'regular'},
+        ${reward.telegramGiftId || null}
       )
     `
 
@@ -1050,7 +1055,9 @@ async function getRandomRouletteReward() {
         reward_id,
         reward_name,
         value,
-        case_name
+        case_name,
+        gift_type,
+        telegram_gift_id
       )
       VALUES (
         ${itemId},
@@ -1058,7 +1065,9 @@ async function getRandomRouletteReward() {
         ${reward.id},
         ${reward.name},
         ${reward.value},
-        'Free Roulette'
+        'Free Roulette',
+        'regular',
+        ${reward.telegramGiftId || null}
       )
     `
 
@@ -1166,6 +1175,13 @@ async function sendTelegramMessage(chatId, text) {
   return telegramRequest('sendMessage', {
     chat_id: chatId,
     text
+  })
+}
+
+async function sendTelegramGift(userId, giftId) {
+  return telegramRequest('sendGift', {
+    user_id: userId,
+    gift_id: giftId
   })
 }
 
@@ -1526,6 +1542,48 @@ app.get(
 /* =========================
    VERCEL
 ========================= */
+
+app.post('/api/withdraw', async (req, res) => {
+  try {
+    const telegramUser = await requireTelegramUser(req, res)
+    if (!telegramUser) return
+
+    const id = String(telegramUser.id)
+    const { inventoryId } = req.body
+
+    const rows = await sql`
+      SELECT * FROM inventory
+      WHERE id = ${inventoryId} AND telegram_id = ${id}
+      LIMIT 1
+    `
+
+    if (!rows.length) {
+      return res.status(404).json({ ok: false, error: 'Item not found' })
+    }
+
+    const item = rows[0]
+
+    if (item.gift_type === 'nft') {
+      await sendTelegramMessage(
+        process.env.ADMIN_TELEGRAM_ID,
+        `🔔 Заявка на вывод NFT\nОт: ${telegramUser.username || telegramUser.id}\nПредмет: ${item.reward_name}\nЦенность: ${item.value}`
+      )
+      return res.json({ ok: true, status: 'pending', message: 'Заявка отправлена, подарок будет переведён вручную' })
+    }
+
+    if (!item.telegram_gift_id) {
+      return res.status(400).json({ ok: false, error: 'Gift is not withdrawable' })
+    }
+
+    await sendTelegramGift(id, item.telegram_gift_id)
+    await sql`DELETE FROM inventory WHERE id = ${inventoryId}`
+
+    res.json({ ok: true, status: 'completed' })
+  } catch (error) {
+    console.error('Withdraw error:', error)
+    res.status(500).json({ ok: false, error: 'Withdraw failed' })
+  }
+})
 
 export default app
 

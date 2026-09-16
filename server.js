@@ -597,6 +597,21 @@ const cases = {
       { giftId: '5170521118301225164', chance: 25 },
       { giftId: '5170564780938756245', chance: 20 }
     ]
+  },
+
+  nft: {
+    id: 'nft',
+    name: '🎁 NFT Подарки',
+    price: 999,
+    isNft: true,
+    gifts: [
+      { name: 'Plush Pepe', emoji: '🐸', value: 500, chance: 25 },
+      { name: 'Scared Cat', emoji: '🐱', value: 400, chance: 25 },
+      { name: 'Homemade Cake', emoji: '🎂', value: 350, chance: 20 },
+      { name: 'Artisan Brick', emoji: '🧱', value: 600, chance: 15 },
+      { name: 'Durov Cap', emoji: '🧢', value: 800, chance: 10 },
+      { name: 'Golden Pepe', emoji: '🐸✨', value: 1200, chance: 5 }
+    ]
   }
 }
 
@@ -789,43 +804,69 @@ const currentCase = cases[caseId]
       })
     }
 
-    const telegramGifts = await getTelegramGifts()
+    let selectedGift = null
+    let reward = null
 
-const weightedGifts = currentCase.gifts
-  .map(item => {
-    const gift = telegramGifts.find(
-      g => String(g.id) === String(item.giftId)
-    )
+    // ===== NFT КЕЙС (ручная выдача) =====
+    if (currentCase.isNft) {
+      const totalChance = currentCase.gifts.reduce((sum, g) => sum + g.chance, 0)
+      let random = Math.random() * totalChance
 
-    return gift ? { gift, chance: item.chance } : null
-  })
-  .filter(Boolean)
+      for (const item of currentCase.gifts) {
+        random -= item.chance
+        if (random <= 0) {
+          selectedGift = item
+          break
+        }
+      }
 
-const totalChance = weightedGifts.reduce(
-  (sum, item) => sum + item.chance,
-  0
-)
+      if (!selectedGift) {
+        return res.status(500).json({ ok: false, error: 'NFT gift selection failed' })
+      }
 
-let random = Math.random() * totalChance
-let selectedGift = null
+      reward = {
+        id: `nft_${Date.now()}_${Math.floor(Math.random() * 10000)}`,
+        name: `🎁 NFT: ${selectedGift.name} (ожидает выдачи)`,
+        value: selectedGift.value,
+        emoji: selectedGift.emoji,
+        isNft: true,
+        manual: true
+      }
+    } 
+    // ===== ОБЫЧНЫЕ КЕЙСЫ =====
+    else {
+      const telegramGifts = await getTelegramGifts()
 
-for (const item of weightedGifts) {
-  random -= item.chance
+      const weightedGifts = currentCase.gifts
+        .map(item => {
+          const gift = telegramGifts.find(
+            g => String(g.id) === String(item.giftId)
+          )
+          return gift ? { gift, chance: item.chance } : null
+        })
+        .filter(Boolean)
 
-  if (random <= 0) {
-    selectedGift = item.gift
-    break
-  }
-}
+      const totalChance = weightedGifts.reduce((sum, item) => sum + item.chance, 0)
+      let random = Math.random() * totalChance
 
-if (!selectedGift) {
-  return res.status(404).json({
-    ok: false,
-    error: 'Telegram Gifts are currently unavailable'
-  })
-}
+      for (const item of weightedGifts) {
+        random -= item.chance
+        if (random <= 0) {
+          selectedGift = item.gift
+          break
+        }
+      }
 
-const reward = giftToReward(selectedGift)
+      if (!selectedGift) {
+        return res.status(404).json({
+          ok: false,
+          error: 'Telegram Gifts are currently unavailable'
+        })
+      }
+
+      reward = giftToReward(selectedGift)
+    }
+
     const itemId = crypto.randomUUID()
 
     const updated = await sql`

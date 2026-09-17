@@ -1587,6 +1587,88 @@ app.post('/api/telegram/webhook', async (req, res) => {
       )
     }
 
+if (
+      text === '/balance' ||
+      text.startsWith('/balance ')
+    ) {
+      const adminId = String(
+        process.env.ADMIN_TELEGRAM_ID || ''
+      )
+
+      if (String(fromId) !== adminId) {
+        await sendTelegramMessage(
+          chatId,
+          '⛔ У тебя нет прав для выдачи звёзд.'
+        )
+
+        return res.json({
+          ok: true
+        })
+      }
+
+      const parts = text.split(/\s+/)
+
+      if (parts.length !== 3) {
+        await sendTelegramMessage(
+          chatId,
+          '❌ Неверный формат.\n\nИспользуй:\n/balance @username 100'
+        )
+
+        return res.json({
+          ok: true
+        })
+      }
+
+      const username = parts[1].replace('@', '')
+      const amount = Number(parts[2])
+
+      if (!Number.isInteger(amount) || amount <= 0) {
+        await sendTelegramMessage(
+          chatId,
+          '❌ Количество звёзд должно быть целым числом больше 0.'
+        )
+
+        return res.json({
+          ok: true
+        })
+      }
+
+      try {
+        const userResult = await sql`
+          SELECT telegram_id FROM users WHERE username = ${username} LIMIT 1
+        `
+
+        if (!userResult.length) {
+          await sendTelegramMessage(
+            chatId,
+            `❌ Пользователь @${username} не найден.`
+          )
+
+          return res.json({
+            ok: true
+          })
+        }
+
+        const userId = userResult[0].telegram_id
+
+        const updated = await sql`
+          UPDATE users SET balance = balance + ${amount} WHERE telegram_id = ${userId} RETURNING balance
+        `
+
+        await sendTelegramMessage(
+          chatId,
+          `✅ Выдано!\n\n👤 @${username}\n⭐ +${amount}\n💰 Баланс: ${updated[0].balance}`
+        )
+      } catch (error) {
+        console.error('Balance error:', error)
+        await sendTelegramMessage(chatId, '❌ Не удалось выдать звёзды.')
+      }
+
+      return res.json({
+        ok: true
+      })
+    }
+
     res.json({
       ok: true
     })

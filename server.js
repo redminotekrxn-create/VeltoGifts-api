@@ -451,6 +451,7 @@ app.post('/api/admin/balance', async (req, res) => {
     if (!admin) return
 
     const { telegramId, amount } = req.body
+console.log('Admin balance request:', { telegramId, amount, adminId: admin?.id })
 
     const id = String(telegramId || '')
     const value = Number(amount)
@@ -513,6 +514,7 @@ app.post('/api/admin/block', async (req, res) => {
 
     const id = String(telegramId || '')
 
+console.log('Updating balance for user:', id, 'amount:', value)
 const result = await sql`
       UPDATE users
       SET balance = balance + ${value}
@@ -529,7 +531,8 @@ const result = await sql`
 
     const user = await getUser(id)
 
-    return res.json({
+console.log('Balance updated, user:', user)    
+return res.json({
       ok: true,
       user
     })

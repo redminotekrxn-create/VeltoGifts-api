@@ -553,11 +553,17 @@ const cases = {
     name: '🥔 Бомж',
     price: 50,
     gifts: [
-      { giftId: '5170145012310081615', chance: 30 },
+      { giftId: '5170145012310081615', chance: 29 },
       { giftId: '5170233102089322756', chance: 25 },
       { giftId: '5170250947678437525', chance: 20 },
       { giftId: '5168103777563050263', chance: 15 },
       { giftId: '6028601630662853006', chance: 10 }
+    ],
+    nftGifts: [
+      { name: 'Lol Sticker', emoji: '😂', value: 300, chance: 0.05 },
+      { name: 'Jelly Bunny', emoji: '🐰', value: 400, chance: 0.03 },
+      { name: 'Vintage Cigar', emoji: '🚬', value: 500, chance: 0.02 },
+      { name: 'Snake Box', emoji: '🐍', value: 600, chance: 0.01 }
     ]
   },
 
@@ -566,11 +572,19 @@ const cases = {
     name: '🆕 Новенький',
     price: 150,
     gifts: [
-      { giftId: '5170250947678437525', chance: 30 },
+      { giftId: '5170250947678437525', chance: 29 },
       { giftId: '5168103777563050263', chance: 25 },
       { giftId: '5170144170496491616', chance: 20 },
       { giftId: '5170314324215857265', chance: 15 },
       { giftId: '5170564780938756245', chance: 10 }
+    ],
+    nftGifts: [
+      { name: 'Homemade Cake', emoji: '🎂', value: 700, chance: 0.03 },
+      { name: 'Diamond Star', emoji: '⭐', value: 850, chance: 0.02 },
+      { name: 'Green Star', emoji: '💚', value: 900, chance: 0.015 },
+      { name: 'Bunny Muffin', emoji: '🧁', value: 1000, chance: 0.01 },
+      { name: 'Lunar Snake', emoji: '🌙', value: 1100, chance: 0.008 },
+      { name: 'Ion Gem', emoji: '💎', value: 1300, chance: 0.005 }
     ]
   },
 
@@ -579,11 +593,23 @@ const cases = {
     name: '💰 Богач',
     price: 300,
     gifts: [
-      { giftId: '5170144170496491616', chance: 25 },
+      { giftId: '5170144170496491616', chance: 24 },
       { giftId: '5170314324215857265', chance: 25 },
       { giftId: '5170564780938756245', chance: 20 },
       { giftId: '5168043875654172773', chance: 15 },
       { giftId: '5170690322832818290', chance: 15 }
+    ],
+    nftGifts: [
+      { name: 'Scared Cat', emoji: '🐱', value: 1500, chance: 0.01 },
+      { name: 'Signet Ring', emoji: '💍', value: 1700, chance: 0.008 },
+      { name: 'Crystal Ball', emoji: '🔮', value: 1900, chance: 0.006 },
+      { name: 'Eternal Rose', emoji: '🌹', value: 2100, chance: 0.005 },
+      { name: 'Gem Signet', emoji: '💎', value: 2300, chance: 0.004 },
+      { name: 'Jester Hat', emoji: '🎭', value: 2500, chance: 0.003 },
+      { name: 'Astral Shard', emoji: '💠', value: 2800, chance: 0.002 },
+      { name: 'Blue Star', emoji: '🔵', value: 3000, chance: 0.0015 },
+      { name: 'Diamond Ring', emoji: '💍', value: 3300, chance: 0.001 },
+      { name: 'Artisan Brick', emoji: '🧱', value: 3600, chance: 0.0005 }
     ]
   },
 
@@ -592,25 +618,32 @@ const cases = {
     name: '👑 Миллиардер',
     price: 699,
     gifts: [
-      { giftId: '5168043875654172773', chance: 30 },
+      { giftId: '5168043875654172773', chance: 29 },
       { giftId: '5170690322832818290', chance: 25 },
       { giftId: '5170521118301225164', chance: 25 },
-      { giftId: '5170564780938756245', chance: 20 }
-    ]
-  },
-
-  nft: {
-    id: 'nft',
-    name: '🎁 NFT Подарки',
-    price: 999,
-    isNft: true,
-    gifts: [
-      { name: 'Plush Pepe', emoji: '🐸', value: 500, chance: 25 },
-      { name: 'Scared Cat', emoji: '🐱', value: 400, chance: 25 },
-      { name: 'Homemade Cake', emoji: '🎂', value: 350, chance: 20 },
-      { name: 'Artisan Brick', emoji: '🧱', value: 600, chance: 15 },
-      { name: 'Durov Cap', emoji: '🧢', value: 800, chance: 10 },
-      { name: 'Golden Pepe', emoji: '🐸✨', value: 1200, chance: 5 }
+      { giftId: '5170564780938756245', chance: 19 }
+    ],
+    nftGifts: [
+      { name: 'Witch Hat', emoji: '🎩', value: 4000, chance: 0.01 },
+      { name: 'Toy Bear', emoji: '🧸', value: 4200, chance: 0.008 },
+      { name: 'Voodoo Doll', emoji: '🪆', value: 4400, chance: 0.007 },
+      { name: 'Hex Pot', emoji: '⚗️', value: 4600, chance: 0.006 },
+      { name: 'Sleigh Bell', emoji: '🔔', value: 4800, chance: 0.005 },
+      { name: 'Hanging Star', emoji: '✨', value: 5000, chance: 0.004 },
+      { name: 'Cookie Heart', emoji: '🍪', value: 5200, chance: 0.0035 },
+      { name: 'Whip Cupcake', emoji: '🧁', value: 5400, chance: 0.003 },
+      { name: 'Spy Agaric', emoji: '🍄', value: 5600, chance: 0.0025 },
+      { name: 'Loot Bag', emoji: '💰', value: 5800, chance: 0.002 },
+      { name: 'Party Sparkler', emoji: '🎉', value: 6000, chance: 0.0015 },
+      { name: 'Winter Wreath', emoji: '🎄', value: 6300, chance: 0.001 },
+      { name: 'Nail Bracelet', emoji: '💅', value: 6600, chance: 0.0008 },
+      { name: 'Lush Bouquet', emoji: '💐', value: 7000, chance: 0.0006 },
+      { name: 'Star Notepad', emoji: '📓', value: 7400, chance: 0.0005 },
+      { name: 'B-Day Candle', emoji: '🕯️', value: 7800, chance: 0.0004 },
+      { name: 'Kissed Frog', emoji: '🐸', value: 8200, chance: 0.0003 },
+      { name: "Durov's Cap", emoji: '🧢', value: 9000, chance: 0.0002 },
+      { name: 'Heart Locket', emoji: '❤️‍🔥', value: 10000, chance: 0.0001 },
+      { name: 'Plush Pepe', emoji: '🐸👑', value: 12000, chance: 0.00001 }
     ]
   }
 }
@@ -807,12 +840,18 @@ const currentCase = cases[caseId]
     let selectedGift = null
     let reward = null
 
-    // ===== NFT КЕЙС (ручная выдача) =====
-    if (currentCase.isNft) {
-      const totalChance = currentCase.gifts.reduce((sum, g) => sum + g.chance, 0)
-      let random = Math.random() * totalChance
+// Выбираем приз — либо NFT, либо обычный подарок
 
-      for (const item of currentCase.gifts) {
+    const totalNftChance = currentCase.nftGifts ? currentCase.nftGifts.reduce((sum, g) => sum + g.chance, 0) : 0
+    const totalRegularChance = currentCase.gifts.reduce((sum, g) => sum + g.chance, 0)
+    const totalChance = totalNftChance + totalRegularChance
+
+    let random = Math.random() * totalChance
+
+    // Выбираем NFT
+    if (random < totalNftChance && currentCase.nftGifts) {
+      random = Math.random() * totalNftChance
+      for (const item of currentCase.nftGifts) {
         random -= item.chance
         if (random <= 0) {
           selectedGift = item
@@ -826,14 +865,14 @@ const currentCase = cases[caseId]
 
       reward = {
         id: `nft_${Date.now()}_${Math.floor(Math.random() * 10000)}`,
-        name: `🎁 NFT: ${selectedGift.name} (ожидает выдачи)`,
+        name: `${selectedGift.emoji} ${selectedGift.name}`,
         value: selectedGift.value,
         emoji: selectedGift.emoji,
         isNft: true,
         manual: true
       }
-    } 
-    // ===== ОБЫЧНЫЕ КЕЙСЫ =====
+    }
+    // Выбираем обычный подарок
     else {
       const telegramGifts = await getTelegramGifts()
 
@@ -846,9 +885,7 @@ const currentCase = cases[caseId]
         })
         .filter(Boolean)
 
-      const totalChance = weightedGifts.reduce((sum, item) => sum + item.chance, 0)
-      let random = Math.random() * totalChance
-
+      random = Math.random() * totalRegularChance
       for (const item of weightedGifts) {
         random -= item.chance
         if (random <= 0) {

@@ -529,11 +529,13 @@ const result = await sql`
 
     const user = await getUser(id)
 
-    res.json({
+    return res.json({
       ok: true,
       user
     })
-  } catch (error) {
+  }
+
+ catch (error) {
     console.error(error)
 
     res.status(500).json({

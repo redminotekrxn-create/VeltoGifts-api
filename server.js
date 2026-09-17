@@ -513,11 +513,11 @@ app.post('/api/admin/block', async (req, res) => {
 
     const id = String(telegramId || '')
 
-    const result = await sql`
+const result = await sql`
       UPDATE users
-      SET blocked = ${Boolean(blocked)}
+      SET balance = balance + ${value}
       WHERE telegram_id = ${id}
-      RETURNING telegram_id
+      RETURNING balance
     `
 
     if (!result.length) {

@@ -1583,7 +1583,7 @@ app.post('/api/telegram/webhook', async (req, res) => {
     if (text.startsWith('/')) {
       await sendTelegramMessage(
         chatId,
-        'Неизвестная команда.\n\nДоступно:\n/start\n/addpromo VELTO100 50 100'
+        'Неизвестная команда.\n\nДоступно:\n/start\n/addpromo VELTO100 50 100\n/balance @username 100'
       )
     }
 

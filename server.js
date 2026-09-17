@@ -873,6 +873,7 @@ const currentCase = cases[caseId]
         name: `${selectedGift.emoji} ${selectedGift.name}`,
         value: selectedGift.value,
         emoji: selectedGift.emoji,
+        image: null,
         isNft: true,
         manual: true
       }
